@@ -6,6 +6,10 @@ from typing import List, Optional
 
 import torch
 
+from python.sglang.srt.utils.model_hierarchy_nvtx_profile import (
+    ModelRunnerNvtxHook,
+    nvtx_config,
+)
 from sglang.srt.environ import envs
 from sglang.srt.managers.io_struct import ProfileReq, ProfileReqOutput, ProfileReqType
 from sglang.srt.model_executor.forward_batch_info import ForwardMode
@@ -206,6 +210,12 @@ class SchedulerProfilerMixin:
                 torch.cuda.cudart().cudaProfilerStart()
             self.profile_in_progress = True
 
+        if "SYNC_NVTX" in activities:
+            nvtx_config.update_state(True, True)
+
+        if "ASYNC_NVTX" in activities:
+            nvtx_config.update_state(True, False)
+
         return ProfileReqOutput(success=True, message="Succeeded")
 
     def _merge_profile_traces(self) -> str:
@@ -234,6 +244,23 @@ class SchedulerProfilerMixin:
             )
 
             logger.info(f"Profile merge completed: {merged_path}")
+
+            if self.need_flush_nvtx:
+                nvtx_merger = ProfileMerger(
+                    self.torch_profiler_output_dir,
+                    self.profile_id,
+                    suffix="nvtx.trace.json.gz",
+                )
+                nvtx_merged_path = nvtx_merger.merge_chrome_traces()
+                nvtx_merger_summary = nvtx_merger.get_merge_summary()
+                merge_message = (
+                    f" Model hierarchy Nvtx Merged trace: {nvtx_merged_path} "
+                    f"(Events: {nvtx_merger_summary.get('total_events', '?')}, "
+                    f"Files: {nvtx_merger_summary.get('total_files', '?')})"
+                )
+                logger.info(
+                    f"Model hierarchy NVTX Profile merge completed: {nvtx_merged_path}"
+                )
         except Exception as e:
             logger.error(f"Failed to merge profiles: {e}", exc_info=True)
             return f" Merge failed: {e!s}"
@@ -261,6 +288,11 @@ class SchedulerProfilerMixin:
 
         stage_suffix = f"-{stage.name}" if stage else ""
         logger.info("Stop profiling" + stage_suffix + "...")
+        self.need_flush_nvtx = False
+        is_nvtx_enable = nvtx_config.nvtx_enable
+        if is_nvtx_enable:
+            nvtx_config.update_state(False, False)
+            self.need_flush_nvtx = True
         if self.torch_profiler is not None:
             self.torch_profiler.stop()
             if not _is_npu:
@@ -285,6 +317,23 @@ class SchedulerProfilerMixin:
                 self.torch_profiler.export_chrome_trace(
                     os.path.join(self.torch_profiler_output_dir, filename)
                 )
+                if self.need_flush_nvtx:
+                    nvtx_filename = (
+                        "-".join(filename_parts) + stage_suffix + ".nvtx.trace.json.gz"
+                    )
+                    nvtx_path = os.path.join(
+                        self.torch_profiler_output_dir, nvtx_filename
+                    )
+                    profile_start_time, ts_shift = ModelRunnerNvtxHook.shift_of_nvtx(
+                        os.path.join(self.torch_profiler_output_dir, filename)
+                    )
+                    ModelRunnerNvtxHook.flush_nvtx(
+                        nvtx_path,
+                        ts_shift_us=ts_shift,
+                        nvtx_thread_name="-".join(filename_parts),
+                        profiler_start_time=profile_start_time,
+                    )
+
             torch.distributed.barrier(self.cpu_group)
 
         if self.rpd_profiler is not None:

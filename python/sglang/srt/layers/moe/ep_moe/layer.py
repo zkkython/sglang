@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 import torch
 
+from python.sglang.srt.utils.model_hierarchy_nvtx_profile import custom_nvtx_annotate
 from sglang.srt.environ import envs
 from sglang.srt.hardware_backend.npu.quantization.fused_moe_method_npu import (
     NPUW4A16Int4DynamicMoEMethod,
@@ -158,17 +159,16 @@ class DeepEPMoE(FusedMoE):
                 hidden_states,
                 topk_output,
             )
-
-        # TODO: can we call super().forward here?
-        dispatch_output = self.dispatcher.dispatch(
-            hidden_states=hidden_states, topk_output=topk_output
-        )
-        combine_input = self.run_moe_core(dispatch_output)
-        hidden_states = self.dispatcher.combine(
-            combine_input=combine_input,
-        )
-
-        return hidden_states
+        with custom_nvtx_annotate("deepep_moe"):
+            # TODO: can we call super().forward here?
+            dispatch_output = self.dispatcher.dispatch(
+                hidden_states=hidden_states, topk_output=topk_output
+            )
+            combine_input = self.run_moe_core(dispatch_output)
+            hidden_states = self.dispatcher.combine(
+                combine_input=combine_input,
+            )
+            return hidden_states
 
     def dispatch(
         self,

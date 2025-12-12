@@ -5,6 +5,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, List, NamedTuple, Optional, Tuple, Union
 
+from python.sglang.srt.utils.model_hierarchy_nvtx_profile import custom_nvtx_annotate
 from sglang.srt.environ import envs
 from sglang.srt.eplb.expert_distribution import get_global_expert_distribution_recorder
 from sglang.srt.layers import deep_gemm_wrapper
@@ -776,11 +777,12 @@ class DeepEPDispatcher(BaseDispatcher):
         hidden_states: torch.Tensor,
         topk_output: TopKOutput,
     ) -> DispatchOutput:
-        self.dispatch_a(hidden_states, topk_output)
-        if self._deepep_dispatch_hooks is not None:
-            self._deepep_dispatch_hooks(self)
-        ret = self.dispatch_b()
-        return ret
+        with custom_nvtx_annotate("dispatch"):
+            self.dispatch_a(hidden_states, topk_output)
+            if self._deepep_dispatch_hooks is not None:
+                self._deepep_dispatch_hooks(self)
+            ret = self.dispatch_b()
+            return ret
 
     def dispatch_a(
         self,
@@ -804,9 +806,10 @@ class DeepEPDispatcher(BaseDispatcher):
         self,
         combine_input: CombineInput,
     ) -> torch.Tensor:
-        self.combine_a(combine_input)
-        ret = self.combine_b()
-        return ret
+        with custom_nvtx_annotate("combine"):
+            self.combine_a(combine_input)
+            ret = self.combine_b()
+            return ret
 
     def combine_a(
         self,

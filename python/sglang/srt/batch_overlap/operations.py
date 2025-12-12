@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Sequence
 
 import torch
 
+from python.sglang.srt.utils.model_hierarchy_nvtx_profile import custom_nvtx_annotate
 from sglang.srt.layers.dp_attention import set_dp_buffer_len
 
 if TYPE_CHECKING:
@@ -131,7 +132,8 @@ def _annotate_region(debug_name):
     if _ENABLE_PROFILE:
         with torch.autograd.profiler.record_function(debug_name):
             with nvtx.annotate(debug_name):
-                yield
+                with custom_nvtx_annotate(debug_name + "_custom"):
+                    yield
     else:
         yield
 

@@ -14,11 +14,12 @@ logger = logging.getLogger(__name__)
 class ProfileMerger:
     """Merge profile traces from all parallelism types: TP, DP, PP, EP."""
 
-    def __init__(self, output_dir: str, profile_id: str):
+    def __init__(self, output_dir: str, profile_id: str, suffix: str = "trace.json.gz"):
         self.output_dir = output_dir
         self.profile_id = profile_id
+        self.suffix = suffix
         self.merged_trace_path = os.path.join(
-            output_dir, f"merged-{profile_id}.trace.json.gz"
+            output_dir, f"merged-{profile_id}.{self.suffix}"
         )
 
         # Rank types in priority order (used for sorting and labeling)
@@ -83,7 +84,7 @@ class ProfileMerger:
 
     def _discover_trace_files(self) -> List[str]:
         """Discover trace files matching profile_id (supports TP/DP/PP/EP formats)."""
-        patterns = [f"{self.profile_id}*.trace.json.gz"]
+        patterns = [f"{self.profile_id}*.{self.suffix}"]
 
         trace_files = []
         for pattern in patterns:

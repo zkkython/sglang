@@ -30,6 +30,10 @@ import torch
 import torch.distributed as dist
 from torch import nn
 
+from python.sglang.srt.utils.model_hierarchy_nvtx_profile import (
+    ModelRunnerNvtxHook,
+    nvtx_config,
+)
 from sglang.srt.configs import (
     FalconH1Config,
     JetNemotronConfig,
@@ -371,6 +375,8 @@ class ModelRunner:
         # For weight updates
         self._model_update_group = {}
         self._weights_send_group = {}
+
+        self.nvtx_hooks = ModelRunnerNvtxHook()
 
     def init_mindspore_runner(self):
         # Init the mindspore runner
@@ -2648,6 +2654,9 @@ class ModelRunner:
     ) -> Tuple[Union[LogitsProcessorOutput, PPProxyTensors], bool]:
         self.forward_pass_id += 1
 
+        if nvtx_config.nvtx_enable and len(self.nvtx_hooks._name_modules) == 0:
+            self.nvtx_hooks.enable_nvtx(self.model)
+
         with get_global_expert_distribution_recorder().with_forward_pass(
             self.forward_pass_id,
             forward_batch,
@@ -2659,6 +2668,9 @@ class ModelRunner:
                 reinit_attn_backend,
                 split_forward_count,
             )
+
+        if not nvtx_config.nvtx_enable and len(self.nvtx_hooks._name_modules) != 0:
+            self.nvtx_hooks.disable_nvtx()
 
         if self.eplb_manager is not None:
             self.eplb_manager.on_forward_pass_end()
