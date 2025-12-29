@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Sequence
 
 import torch
 
-from python.sglang.srt.utils.model_hierarchy_nvtx_profile import custom_nvtx_annotate
+from sglang.srt.utils.model_hierarchy_nvtx_profile import custom_nvtx_annotate
 from sglang.srt.layers.dp_attention import set_dp_buffer_len
 
 if TYPE_CHECKING:
