@@ -6,7 +6,7 @@ from typing import List, Optional
 
 import torch
 
-from python.sglang.srt.utils.model_hierarchy_nvtx_profile import (
+from sglang.srt.utils.model_hierarchy_nvtx_profile import (
     ModelRunnerNvtxHook,
     nvtx_config,
 )

@@ -5,7 +5,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, List, NamedTuple, Optional, Tuple, Union
 
-from python.sglang.srt.utils.model_hierarchy_nvtx_profile import custom_nvtx_annotate
+from sglang.srt.utils.model_hierarchy_nvtx_profile import custom_nvtx_annotate
 from sglang.srt.environ import envs
 from sglang.srt.eplb.expert_distribution import get_global_expert_distribution_recorder
 from sglang.srt.layers import deep_gemm_wrapper

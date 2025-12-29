@@ -30,7 +30,7 @@ import torch
 import torch.distributed as dist
 from torch import nn
 
-from python.sglang.srt.utils.model_hierarchy_nvtx_profile import (
+from sglang.srt.utils.model_hierarchy_nvtx_profile import (
     ModelRunnerNvtxHook,
     nvtx_config,
 )
